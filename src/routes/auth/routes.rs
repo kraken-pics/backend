@@ -17,11 +17,9 @@ pub fn get() -> Scope {
     web::scope("/auth").service(login)
 }
 
-type Response<T> = Result<T, Error>;
-
 // login route
 #[post("/")]
-async fn login(data: web::Json<ILogin>, state: AppData) -> Response<impl Responder> {
+async fn login(data: web::Json<ILogin>, state: AppData) -> Result<impl Responder, Error> {
     let find_user = user::Entity::find()
         .filter(user::Column::Username.eq(data.username.to_owned()))
         .one(&state.db)

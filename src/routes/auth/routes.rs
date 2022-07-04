@@ -78,7 +78,14 @@ async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Res
     if data.password.len() < 5 {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
-            message: "Username too short".to_string(),
+            message: "Password too short".to_string(),
+        }));
+    }
+
+    if data.password.len() > 50 {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Password too long".to_string(),
         }));
     }
 

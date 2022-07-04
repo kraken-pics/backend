@@ -1,6 +1,7 @@
 use crate::{entity::user, state::state::AppState, util::response::ApiResponse};
 use actix_web::{post, web, Error, Responder, Result, Scope};
-use sea_orm::{ColumnTrait, Condition, EntityTrait, QueryFilter};
+use bcrypt::hash;
+use sea_orm::{prelude::Uuid, ColumnTrait, Condition, EntityTrait, QueryFilter, Set};
 use serde::Deserialize;
 
 // global AppState
@@ -17,12 +18,12 @@ pub struct IRegister {
     pub username: String,
     pub email: String,
     pub password: String,
-    pub recaptcha: String,
+    // pub recaptcha: String,
 }
 
 // export auth's routes
 pub fn get() -> Scope {
-    web::scope("/auth").service(login)
+    web::scope("/auth").service(login).service(register)
 }
 
 // login route
@@ -57,26 +58,9 @@ async fn login(data: web::Json<ILogin>, state: AppData) -> Result<impl Responder
     }));
 }
 
-#[post("/register")]
+#[post("")]
 async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Responder, Error> {
-    match recaptcha::verify(
-        dotenv::var("RECAPTCHA_SECRET")
-            .expect("RECAPTCHA_SECRET not set in env")
-            .as_str(),
-        &data.recaptcha,
-        None,
-    )
-    .await
-    {
-        Ok(_) => (),
-        Err(err) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: err.to_string(),
-            }))
-        }
-    };
-
+    // these if's are spaghetti
     if data.username.len() < 3 {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
@@ -101,8 +85,8 @@ async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Res
     if user::Entity::find()
         .filter(
             Condition::any()
-                .add(user::Column::Username.eq(data.username.to_owned()))
-                .add(user::Column::Email.eq(data.email.to_owned())),
+                .add(user::Column::Username.eq(data.username.clone()))
+                .add(user::Column::Email.eq(data.email.clone())),
         )
         .one(&state.db)
         .await
@@ -115,14 +99,23 @@ async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Res
         }));
     };
 
-    user::Entity::insert(user::ActiveModel {
-        username: todo!(""),
-        email: todo!(""),
-        password: todo!(""),
-        token: todo!(""),
-        uploadtoken: todo!(""),
+    let hashed_password = hash(data.password.clone(), 10).expect("Fail to hash");
+    if let Err(_) = user::Entity::insert(user::ActiveModel {
+        username: Set(data.username.clone()),
+        email: Set(data.email.clone()),
+        password: Set(hashed_password.to_string()),
+        token: Set(Uuid::new_v4().clone().to_string()),
+        uploadtoken: Set(Uuid::new_v4().clone().to_string()),
         ..Default::default()
-    });
+    })
+    .exec(&state.db)
+    .await
+    {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Internal error occurred".to_string(),
+        }));
+    };
 
     Ok(actix_web::web::Json(ApiResponse {
         success: false,

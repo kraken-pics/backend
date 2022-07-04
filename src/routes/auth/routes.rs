@@ -118,7 +118,7 @@ async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Res
     };
 
     Ok(actix_web::web::Json(ApiResponse {
-        success: false,
-        message: "meow".to_string(),
+        success: true,
+        message: "successfully registered user.".to_string(),
     }))
 }

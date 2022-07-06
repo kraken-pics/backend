@@ -1,4 +1,4 @@
-name: Rust
+name: kraken backend
 
 on:
   push:
@@ -12,29 +12,32 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - name: Build backend for release
-    - uses: actions/checkout@v3
-      run: cargo build --release
-      - name: Run tests on backend
-        run: cargo test
-      - name: Zip backend
-        uses: thedoctor0/zip-release@master
+      - uses: actions/checkout@v3
+      - name: Build for release
+        run: cargo build --release
+      - name: Run tests
+        run: cargo test --release
+      - uses: actions/checkout@master
+      - name: Archive release
+        uses: thedoctor0/zip-release@main
         with:
           path: ${{ github.workspace }}\backend\target\release\.
-          exclusions: '*.fingerprint* *build* *deps* *examples* *incremental* *.cargo-lock *kraken.d *libkraken.d *libkraken.rlib'
-          type: 'zip'
-          filename: 'Backend.zip'
+          exclusions: '.fingerprint\* deps\* build\* incremental\* .cargo-lock *.d* *.rlib*'
+          type: zip
+          filename: "kraken.zip"
       - name: Generate release tag
-      id: tag
-      run: |
-        echo "::set-output name=release_tag::Release_$(date +"%Y.%m.%d_%H-%M")"
-      - name: Upload Release 📦
-      id: upload-release-asset 
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
-        files: |
-          Backend.zip
+        id: tag
+        run: |
+          echo "::set-output name=release_tag::Release_$(date +"%Y.%m.%d_%H-%M")"
+
+      - name: Upload release
+        id: upload-release-asset
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          files: |
+            kraken.zip

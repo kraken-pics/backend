@@ -17,4 +17,3 @@ sea-orm = { version = "0.8.0", features = [
     "macros",
 ], default-features = false }
 bcrypt = "0.13"
-uuid = "1.1.2"

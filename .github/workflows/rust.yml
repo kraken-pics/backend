@@ -12,20 +12,19 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
-      - name: Build backend for release
-        run: cargo build --release
+    - name: Build backend for release
+    - uses: actions/checkout@v3
+      run: cargo build --release
       - name: Run tests on backend
         run: cargo test
-      -name: Zip backend
-       uses: thedoctor0/zip-release@master
-       with:
-         path: ${{ github.workspace }}\backend\target\release\.
-         exclusions: '*.fingerprint* *build* *deps* *examples* *incremental* *.cargo-lock *kraken.d *libkraken.d *libkraken.rlib'
-        type: 'zip'
-         filename: 'Backend.zip'
+      - name: Zip backend
+        uses: thedoctor0/zip-release@master
+        with:
+          path: ${{ github.workspace }}\backend\target\release\.
+          exclusions: '*.fingerprint* *build* *deps* *examples* *incremental* *.cargo-lock *kraken.d *libkraken.d *libkraken.rlib'
+          type: 'zip'
+          filename: 'Backend.zip'
       - name: Generate release tag
       id: tag
       run: |

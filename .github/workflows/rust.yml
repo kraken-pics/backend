@@ -23,7 +23,6 @@ jobs:
       - name: Archive release
         uses: thedoctor0/zip-release@main
         with:
-          path: ${{ github.workspace }}\target\release\.
           exclusions: '.fingerprint\* deps\* build\* incremental\* .cargo-lock *.d* *.rlib*'
           type: zip
           filename: "kraken.zip"

@@ -1,7 +1,14 @@
-use crate::{entity::user, state::state::AppState, util::response::ApiResponse};
+use crate::{
+    entity::user,
+    state::state::AppState,
+    util::{jwt::create_jwt, response::ApiResponse},
+};
+use actix_identity::Identity;
 use actix_web::{post, web, Error, Responder, Result, Scope};
 use bcrypt::hash;
-use sea_orm::{prelude::Uuid, ColumnTrait, Condition, EntityTrait, QueryFilter, Set};
+use sea_orm::{
+    prelude::Uuid, ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set,
+};
 use serde::Deserialize;
 
 // global AppState
@@ -27,8 +34,12 @@ pub fn get() -> Scope {
 }
 
 // login route
-#[post("/")]
-async fn login(data: web::Json<ILogin>, state: AppData) -> Result<impl Responder, Error> {
+#[post("/login")]
+async fn login(
+    data: web::Json<ILogin>,
+    state: AppData,
+    id: Identity,
+) -> Result<impl Responder, Error> {
     let find_user = user::Entity::find()
         .filter(user::Column::Username.eq(data.username.to_owned()))
         .one(&state.db)
@@ -52,14 +63,21 @@ async fn login(data: web::Json<ILogin>, state: AppData) -> Result<impl Responder
         }));
     }
 
+    // set user in session
+    id.remember(create_jwt(found_user.token.to_string()).unwrap());
+
     return Ok(actix_web::web::Json(ApiResponse {
-        success: false,
-        message: found_user.username.to_string(),
+        success: true,
+        message: "Successfully logged in.".to_string(),
     }));
 }
 
-#[post("")]
-async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Responder, Error> {
+#[post("/register")]
+async fn register(
+    data: web::Json<IRegister>,
+    state: AppData,
+    id: Identity,
+) -> Result<impl Responder, Error> {
     // these if's are spaghetti
     if data.username.len() < 3 {
         return Ok(actix_web::web::Json(ApiResponse {
@@ -107,25 +125,23 @@ async fn register(data: web::Json<IRegister>, state: AppData) -> Result<impl Res
     };
 
     let hashed_password = hash(data.password.clone(), 10).expect("Fail to hash");
-    if let Err(_) = user::Entity::insert(user::ActiveModel {
+
+    let new_user = user::ActiveModel {
         username: Set(data.username.clone()),
         email: Set(data.email.clone()),
         password: Set(hashed_password.to_string()),
         token: Set(Uuid::new_v4().clone().to_string()),
         uploadtoken: Set(Uuid::new_v4().clone().to_string()),
         ..Default::default()
-    })
-    .exec(&state.db)
+    }
+    .insert(&state.db)
     .await
-    {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Internal error occurred".to_string(),
-        }));
-    };
+    .unwrap();
+
+    id.remember(create_jwt(new_user.username.to_string()).unwrap());
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
-        message: "successfully registered user.".to_string(),
+        message: "Successfully registered user.".to_string(),
     }))
 }

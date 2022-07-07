@@ -7,19 +7,6 @@ use serde::Deserialize;
 // global AppState
 type AppData = web::Data<AppState>;
 
-#[derive(Deserialize)]
-pub struct ILogin {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Deserialize)]
-pub struct IRegister {
-    pub username: String,
-    pub email: String,
-    pub password: String,
-    // pub recaptcha: String,
-}
 
 // export auth's routes
 pub fn get() -> Scope {
@@ -30,6 +17,7 @@ pub fn get() -> Scope {
 #[get("")]
 async fn get_user(data: web::Json<ILogin>, state: AppData) -> Result<impl Responder, Error> {
 
+    
 }
 
 // update user route

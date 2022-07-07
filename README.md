@@ -2,4 +2,4 @@
 
 ## self-host instructions
 
-- will be made after first full release
+-  will be made after first full release

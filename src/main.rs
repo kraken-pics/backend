@@ -3,8 +3,8 @@ use actix_web::{web, App, HttpServer};
 
 use dotenv::dotenv;
 
-use kraken::routes;
-use kraken::state::state;
+use kraken::controllers;
+use kraken::state;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -30,7 +30,9 @@ async fn main() -> std::io::Result<()> {
             // state middleware
             .app_data(web::Data::new(app_state.clone()))
             // auth routes
-            .service(routes::auth::routes::get())
+            .service(controllers::auth::routes::get())
+            .service(controllers::user::routes::get())
+            .service(controllers::global::routes::get())
     })
     // bind to localhost on envar port
     .bind(("127.0.0.1", port.parse().unwrap()))?

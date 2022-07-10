@@ -1,7 +1,11 @@
 use crate::{
     entity::user,
-    state::state::AppState,
-    util::{jwt::create_jwt, response::ApiResponse},
+    state::AppState,
+    typings::{
+        auth::{ILogin, IRegister},
+        response::ApiResponse,
+    },
+    util::jwt::create_jwt,
 };
 use actix_identity::Identity;
 use actix_web::{post, web, Error, Responder, Result, Scope};
@@ -9,43 +13,25 @@ use bcrypt::hash;
 use sea_orm::{
     prelude::Uuid, ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set,
 };
-use serde::Deserialize;
 
-// global AppState
 type AppData = web::Data<AppState>;
 
-#[derive(Deserialize)]
-pub struct ILogin {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Deserialize)]
-pub struct IRegister {
-    pub username: String,
-    pub email: String,
-    pub password: String,
-    // pub recaptcha: String,
-}
-
-// export auth's routes
 pub fn get() -> Scope {
     web::scope("/auth").service(login).service(register)
 }
 
-// login route
 #[post("/login")]
 async fn login(
     data: web::Json<ILogin>,
     state: AppData,
     id: Identity,
 ) -> Result<impl Responder, Error> {
-    let find_user = user::Entity::find()
+    let found_user = match user::Entity::find()
         .filter(user::Column::Username.eq(data.username.to_owned()))
         .one(&state.db)
         .await
-        .expect("User not found");
-    let found_user = match find_user {
+        .expect("User not found")
+    {
         Some(val) => val,
         None => {
             return Ok(actix_web::web::Json(ApiResponse {
@@ -110,8 +96,8 @@ async fn register(
     if user::Entity::find()
         .filter(
             Condition::any()
-                .add(user::Column::Username.eq(data.username.clone()))
-                .add(user::Column::Email.eq(data.email.clone())),
+                .add(user::Column::Username.eq(data.username.to_owned()))
+                .add(user::Column::Email.eq(data.email.to_owned())),
         )
         .one(&state.db)
         .await

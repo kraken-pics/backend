@@ -19,3 +19,4 @@ sea-orm = { version = "0.8.0", features = [
 bcrypt = "0.13"
 actix-identity = "0.4"
 jsonwebtoken = "8"
+async-std = "1.12.0"

@@ -7,6 +7,10 @@ use actix_web::{get, web, Error, Responder, Result, Scope};
 
 use sea_orm::*;
 
+use std::time::Duration;
+
+use async_std::task;
+
 type AppData = web::Data<AppState>;
 
 pub fn get() -> Scope {
@@ -23,6 +27,8 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
         .count(&state.db)
         .await
         .expect("Failed to count uploads");
+
+    task::sleep(Duration::from_secs(1)).await;
 
     return Ok(actix_web::web::Json(StatsResponse {
         success: true,

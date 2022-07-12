@@ -123,7 +123,7 @@ async fn delete_user(state: AppData, id: Identity) -> Result<impl Responder, Err
         Err(_) => {
             return Ok(actix_web::web::Json(ApiResponse {
                 success: true,
-                message: "Unknown error occurred, please try again".to_string(),
+                message: "An unknown error occurred, please try again".to_string(),
             }));
         }
     };

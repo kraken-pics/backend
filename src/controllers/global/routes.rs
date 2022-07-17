@@ -7,11 +7,7 @@ use actix_web::{get, web, Error, Responder, Result, Scope};
 
 use sea_orm::*;
 
-use std::time::Duration;
-
 use fs_extra::dir::get_size;
-
-use async_std::task;
 
 type AppData = web::Data<AppState>;
 
@@ -30,8 +26,6 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
         .await
         .expect("Failed to count uploads");
     let storage_used = get_size("/home/ian/Documents/code/kraken-pics/backend").unwrap();
-
-    task::sleep(Duration::from_secs(1)).await;
 
     return Ok(actix_web::web::Json(StatsResponse {
         success: true,

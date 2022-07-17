@@ -9,6 +9,8 @@ use sea_orm::*;
 
 use std::time::Duration;
 
+use fs_extra::dir::get_size;
+
 use async_std::task;
 
 type AppData = web::Data<AppState>;
@@ -27,6 +29,7 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
         .count(&state.db)
         .await
         .expect("Failed to count uploads");
+    let storage_used = get_size("/home/ian/Documents/code/kraken-pics/backend").unwrap();
 
     task::sleep(Duration::from_secs(1)).await;
 
@@ -36,6 +39,7 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
         statistics: Stats {
             users: count_user,
             uploads: count_upload,
+            storage: storage_used,
         },
     }));
 }

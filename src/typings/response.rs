@@ -11,6 +11,7 @@ pub struct ApiResponse {
 pub struct Stats {
     pub users: usize,
     pub uploads: usize,
+    pub storage: u64,
 }
 
 #[derive(Serialize)]

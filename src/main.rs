@@ -29,10 +29,8 @@ async fn main() -> std::io::Result<()> {
             ))
             // state middleware
             .app_data(web::Data::new(app_state.clone()))
-            // auth routes
-            .service(controllers::auth::routes::get())
-            .service(controllers::user::routes::get())
-            .service(controllers::global::routes::get())
+            // routes
+            .service(controllers::routes::get())
     })
     // bind to localhost on envar port
     .bind(("127.0.0.1", port.parse().unwrap()))?

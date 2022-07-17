@@ -17,6 +17,8 @@ pub fn get() -> Scope {
 
 #[get("/statistics")]
 async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
+    let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR must be set");
+
     let count_user = user::Entity::find()
         .count(&state.db)
         .await
@@ -25,7 +27,7 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
         .count(&state.db)
         .await
         .expect("Failed to count uploads");
-    let storage_used = get_size("/home/ian/Documents/code/kraken-pics/backend").unwrap();
+    let storage_used = get_size(upload_dir).unwrap();
 
     return Ok(actix_web::web::Json(StatsResponse {
         success: true,

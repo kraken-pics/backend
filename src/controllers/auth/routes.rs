@@ -52,10 +52,10 @@ async fn login(
     // set user in session
     id.remember(create_jwt(found_user.token.to_string()).unwrap());
 
-    return Ok(actix_web::web::Json(ApiResponse {
+    Ok(actix_web::web::Json(ApiResponse {
         success: true,
         message: "Successfully logged in.".to_string(),
-    }));
+    }))
 }
 
 #[post("/register")]

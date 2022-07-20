@@ -29,7 +29,7 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
         .expect("Failed to count uploads");
     let storage_used = get_size(upload_dir).unwrap();
 
-    return Ok(actix_web::web::Json(StatsResponse {
+    Ok(actix_web::web::Json(StatsResponse {
         success: true,
         message: "Successfully grabbed statistics".to_string(),
         statistics: Stats {
@@ -37,5 +37,5 @@ async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
             uploads: count_upload,
             storage: storage_used,
         },
-    }));
+    }))
 }

@@ -58,7 +58,7 @@ async fn get_user(state: AppData, id: Identity) -> Result<impl Responder, Error>
         }
     };
 
-    return Ok(actix_web::web::Json(UserResponse {
+    Ok(actix_web::web::Json(UserResponse {
         success: true,
         message: "Successfully found current user!".to_string(),
         user: Some(User {
@@ -68,7 +68,7 @@ async fn get_user(state: AppData, id: Identity) -> Result<impl Responder, Error>
             membership: found_user.membership.to_owned(),
             uploadtoken: found_user.uploadtoken.to_owned(),
         }),
-    }));
+    }))
 }
 
 // update user route
@@ -128,8 +128,8 @@ async fn delete_user(state: AppData, id: Identity) -> Result<impl Responder, Err
         }
     };
 
-    return Ok(actix_web::web::Json(ApiResponse {
+    Ok(actix_web::web::Json(ApiResponse {
         success: true,
         message: "Successfully deleted user!".to_string(),
-    }));
+    }))
 }

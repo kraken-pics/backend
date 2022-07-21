@@ -54,7 +54,7 @@ async fn login(
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
-        message: "Successfully logged in.".to_string(),
+        message: "Successfully logged in".to_string(),
     }))
 }
 
@@ -110,7 +110,15 @@ async fn register(
         }));
     };
 
-    let hashed_password = hash(data.password.clone(), 10).expect("Fail to hash");
+    let hashed_password = match hash(data.password.clone(), 10) {
+        Ok(val) => val,
+        Err(_) => {
+            return Ok(actix_web::web::Json(ApiResponse {
+                success: false,
+                message: "Internal error occurred, please try again".to_string(),
+            }));
+        }
+    };
 
     let new_user = user::ActiveModel {
         username: Set(data.username.clone()),
@@ -121,13 +129,22 @@ async fn register(
         ..Default::default()
     }
     .insert(&state.db)
-    .await
-    .unwrap();
+    .await;
 
-    id.remember(create_jwt(new_user.username.to_string()).unwrap());
+    match new_user {
+        Ok(_) => (),
+        Err(_) => {
+            return Ok(actix_web::web::Json(ApiResponse {
+                success: false,
+                message: "Internal error occurred, please try again".to_string(),
+            }));
+        }
+    }
+
+    id.remember(create_jwt(new_user.unwrap().username.to_string()).unwrap());
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
-        message: "Successfully registered user.".to_string(),
+        message: "Successfully registered user".to_string(),
     }))
 }

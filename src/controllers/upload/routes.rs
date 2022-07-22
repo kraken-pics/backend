@@ -30,6 +30,7 @@ pub struct ExampleForm {
 
 #[post("")]
 async fn upload_file(data: Multipart<ExampleForm>) -> Result<impl Responder, Error> {
+    let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR envar");
     let file = &data.file;
 
     // TO-DO:
@@ -41,7 +42,6 @@ async fn upload_file(data: Multipart<ExampleForm>) -> Result<impl Responder, Err
 
     let digest = &format!("{:x}", Sha256::digest(&data.file.bytes));
 
-    let upload_dir = "/home/ian/Documents/code/kraken-pics/backend/uploads";
     let upload_path = format!(
         "{}{}/",
         upload_dir.to_string(),

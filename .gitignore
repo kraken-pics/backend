@@ -16,3 +16,6 @@ Cargo.lock
 
 # vscode
 .vscode
+
+# uploads dir
+*uploads/

@@ -1,5 +1,5 @@
 use crate::{
-    entity::user,
+    entity::{config, user},
     state::AppState,
     typings::{
         auth::{ILogin, IRegister},
@@ -26,6 +26,7 @@ async fn login(
     state: AppData,
     id: Identity,
 ) -> Result<impl Responder, Error> {
+    // find user in db
     let found_user = match user::Entity::find()
         .filter(user::Column::Username.eq(data.username.to_owned()))
         .one(&state.db)
@@ -41,23 +42,29 @@ async fn login(
         }
     };
 
-    let verify_pass = bcrypt::verify(data.password.clone(), &found_user.password);
-    if !verify_pass.is_ok() {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Invalid username/password".to_string(),
-        }));
-    }
+    // check if stored hash compares successfully to the user provided password
+    match bcrypt::verify(data.password.clone(), &found_user.password) {
+        Ok(val) => val,
+        Err(_) => {
+            return Ok(actix_web::web::Json(ApiResponse {
+                success: false,
+                message: "Invalid username/password".to_string(),
+            }))
+        }
+    };
 
     // set user in session
     id.remember(create_jwt(found_user.token.to_string()).unwrap());
 
+    // success
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
         message: "Successfully logged in".to_string(),
     }))
 }
 
+// TO-DO:
+// find out to create config at the same time as user with relations etc with seaorm
 #[post("/register")]
 async fn register(
     data: web::Json<IRegister>,
@@ -65,7 +72,7 @@ async fn register(
     id: Identity,
 ) -> Result<impl Responder, Error> {
     // these if's are spaghetti
-    if data.username.len() < 3 {
+    if data.username.len() < 3 || data.username.len() > 30 {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
             message: "Username too short".to_string(),
@@ -131,17 +138,14 @@ async fn register(
     .insert(&state.db)
     .await;
 
-    match new_user {
-        Ok(_) => (),
-        Err(_) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Internal error occurred, please try again".to_string(),
-            }));
-        }
+    if let Err(_) = new_user {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Internal error occurred, please try again".to_string(),
+        }));
     }
 
-    id.remember(create_jwt(new_user.unwrap().username.to_string()).unwrap());
+    id.remember(create_jwt(new_user.unwrap().token.to_string()).unwrap());
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,

@@ -32,10 +32,12 @@ pub struct ExampleForm {
 async fn upload_file(data: Multipart<ExampleForm>) -> Result<impl Responder, Error> {
     let file = &data.file;
 
-    let extension = Path::new(&file.name)
-        .extension()
-        .and_then(OsStr::to_str)
-        .unwrap();
+    // TO-DO:
+    // add file extension check
+    // let extension = Path::new(&file.name)
+    //     .extension()
+    //     .and_then(OsStr::to_str)
+    //     .unwrap();
 
     let digest = &format!("{:x}", Sha256::digest(&data.file.bytes));
 

@@ -42,13 +42,12 @@ async fn upload_file(data: Multipart<ExampleForm>) -> Result<impl Responder, Err
 
     let digest = &format!("{:x}", Sha256::digest(&data.file.bytes));
 
-    let path = std::path::Path::new(
-        &(format!(
-            "{}{}/",
-            upload_dir.to_string(),
-            get_file_path(digest.to_string()).to_string()
-        )),
+    let format_path = format!(
+        "{}{}/",
+        upload_dir.to_string(),
+        get_file_path(digest.to_string()).to_string()
     );
+    let path = std::path::Path::new(&format_path);
 
     if !Path::new(&path).exists() {
         std::fs::create_dir_all(path).unwrap();
@@ -58,7 +57,7 @@ async fn upload_file(data: Multipart<ExampleForm>) -> Result<impl Responder, Err
         .write(true)
         .create(true)
         .truncate(true)
-        .open(format!("{}{}", path.to_string_lossy(), digest))
+        .open(format!("{}{}", format_path, digest))
         .await?;
     cfile.write_all(&file.bytes).await?;
 

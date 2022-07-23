@@ -58,7 +58,7 @@ async fn upload_file(data: Multipart<ExampleForm>) -> Result<impl Responder, Err
         .write(true)
         .create(true)
         .truncate(true)
-        .open(format!("{}{}", upload_path, digest))
+        .open(format!("{}{}", path.to_string_lossy(), digest))
         .await?;
     cfile.write_all(&file.bytes).await?;
 

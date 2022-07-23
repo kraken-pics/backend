@@ -50,6 +50,6 @@ async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Erro
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
-        message: "cum".to_string(),
+        message: "Successfully uploaded file".to_string(),
     }))
 }

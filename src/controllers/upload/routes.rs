@@ -1,14 +1,7 @@
-use std::{
-    ffi::OsStr,
-    fmt::format,
-    fs,
-    os::unix::prelude::FileExt,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
-use actix_multipart_extract::{File, Multipart, MultipartForm};
-use actix_web::{post, web, App, Error, HttpResponse, HttpServer, Responder, Scope};
-use serde::Deserialize;
+use actix_multipart_extract::Multipart;
+use actix_web::{post, web, Error, Responder, Scope};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 

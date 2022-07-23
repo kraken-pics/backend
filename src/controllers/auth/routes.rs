@@ -1,5 +1,5 @@
 use crate::{
-    entity::{config, user},
+    entity::user,
     state::AppState,
     typings::{
         auth::{ILogin, IRegister},

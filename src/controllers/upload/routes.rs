@@ -80,7 +80,7 @@ async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Erro
     if std::path::Path::new(&file_path).exists() {
         return Ok(actix_web::web::Json(ApiResponse {
             success: true,
-            message: "Successfully uploaded file1".to_string(),
+            message: "Successfully uploaded file".to_string(),
         }));
     }
     // open a write stream to the dir & file to create them
@@ -98,6 +98,6 @@ async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Erro
     // success!
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
-        message: "Successfully uploaded file2".to_string(),
+        message: "Successfully uploaded file".to_string(),
     }))
 }

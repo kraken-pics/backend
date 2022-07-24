@@ -91,9 +91,12 @@ async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Erro
         .truncate(true)
         .open(file_path)
         .await?;
-
-    // write the file from bytes
-    file.write_all(&data.file.bytes).await?;
+    if let Err(_) = file.write_all(&data.file.bytes).await {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Internal error occurred, try again later".to_string(),
+        }));
+    };
 
     // success!
     Ok(actix_web::web::Json(ApiResponse {

@@ -5,4 +5,5 @@ use serde::Deserialize;
 pub struct UploadForm {
     #[multipart(max_size = 25MB)]
     pub file: File,
+    pub upload_key: String,
 }

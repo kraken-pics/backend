@@ -15,9 +15,6 @@ async fn main() -> std::io::Result<()> {
     let is_secure = dotenv::var("SECURE_HTTP").expect("SECURE_HTTP envar");
     let port = dotenv::var("PORT").expect("PORT envar");
 
-    // initialize appstate
-    let app_state = state::AppState::init().await;
-
     // instanciate http server
     HttpServer::new(move || {
         App::new()
@@ -28,7 +25,8 @@ async fn main() -> std::io::Result<()> {
                     .secure(is_secure.parse().unwrap()),
             ))
             // state middleware
-            .app_data(web::Data::new(app_state.clone()))
+            .app_data(web::Data::new(state::AppState::init_db()))
+            .app_data(state::AppState::init_multipart())
             // routes
             .service(controllers::routes::get())
     })

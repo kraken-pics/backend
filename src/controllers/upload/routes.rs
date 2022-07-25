@@ -41,7 +41,8 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
             message: "Internal error occurred, try again later".to_string(),
         }));
     };
-    println!("{}", digest);
+
+    // get the first two characters of the digest and make a directory using it
     let digest_path = get_file_path(digest.to_string()).to_string();
 
     // get the first two characters of the file digest

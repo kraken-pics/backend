@@ -27,7 +27,7 @@ fn get_file_path(digest: String) -> String {
 }
 
 #[post("")]
-async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Error> {
+async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl Responder, Error> {
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR envar");
 
     // get file digest, as
@@ -35,12 +35,13 @@ async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Erro
     // though, each time; it does create a db value aka a mask just pointing toward the same file
     let digest_create = Sha256::digest(&data.file.bytes);
     let mut digest = String::with_capacity(digest_create.len());
-    if let Err(_) = write!(digest, "{:?}", digest_create) {
+    if let Err(_) = write!(digest, "{:x}", digest_create) {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
             message: "Internal error occurred, try again later".to_string(),
         }));
     };
+    println!("{}", digest);
     let digest_path = get_file_path(digest.to_string()).to_string();
 
     // get the first two characters of the file digest
@@ -75,6 +76,8 @@ async fn upload_file(data: Multipart<UploadForm>) -> Result<impl Responder, Erro
             message: "Internal error occurred, try again later".to_string(),
         }));
     };
+
+    println!("{}", file_path);
 
     // if the file exists, theres no point in re-writing it
     if std::path::Path::new(&file_path).exists() {

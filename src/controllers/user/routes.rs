@@ -9,9 +9,6 @@ use actix_web::{delete, get, post, web, Error, Responder, Result, Scope};
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-// global AppState
-type AppData = web::Data<AppState>;
-
 // export auth's routes
 pub fn get() -> Scope {
     web::scope("/user")
@@ -22,7 +19,7 @@ pub fn get() -> Scope {
 
 // get user route
 #[get("")]
-async fn get_user(state: AppData, id: Identity) -> Result<impl Responder, Error> {
+async fn get_user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {
@@ -73,7 +70,7 @@ async fn get_user(state: AppData, id: Identity) -> Result<impl Responder, Error>
 
 // update user route
 #[post("")]
-async fn update_user(_state: AppData) -> Result<impl Responder, Error> {
+async fn update_user(_state: web::Data<AppState>) -> Result<impl Responder, Error> {
     Ok(actix_web::web::Json(ApiResponse {
         success: false,
         message: "update".to_string(),
@@ -82,7 +79,7 @@ async fn update_user(_state: AppData) -> Result<impl Responder, Error> {
 
 // delete user route
 #[delete("")]
-async fn delete_user(state: AppData, id: Identity) -> Result<impl Responder, Error> {
+async fn delete_user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {

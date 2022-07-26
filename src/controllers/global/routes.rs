@@ -9,14 +9,12 @@ use sea_orm::*;
 
 use fs_extra::dir::get_size;
 
-type AppData = web::Data<AppState>;
-
 pub fn get() -> Scope {
     web::scope("/global").service(get_statistics)
 }
 
 #[get("/statistics")]
-async fn get_statistics(state: AppData) -> Result<impl Responder, Error> {
+async fn get_statistics(state: web::Data<AppState>) -> Result<impl Responder, Error> {
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR must be set");
 
     let count_user = user::Entity::find()

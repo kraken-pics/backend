@@ -3,16 +3,16 @@ use std::path::Path;
 use actix_multipart_extract::Multipart;
 use actix_web::{post, web, Error, Responder, Scope};
 use sha2::{Digest, Sha256};
-use std::fmt::Write;
 use tokio::io::AsyncWriteExt;
 
 use crate::{
-    entity::user,
+    entity::{upload, user},
     state::AppState,
     typings::{response::ApiResponse, upload::UploadForm},
+    util::string::gen_image_mask,
 };
 
-use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
+use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 
 // global AppState
 type AppData = web::Data<AppState>;
@@ -21,48 +21,49 @@ pub fn get() -> Scope {
     web::scope("/upload").service(upload_file)
 }
 
-fn get_file_path(digest: String) -> String {
+fn create_digest_path(digest: String) -> String {
     let digest_vec: Vec<char> = digest.chars().collect();
-    format!("/{}/{}", digest_vec[0], digest_vec[1])
+
+    let first_char = digest_vec[0].to_string();
+    let second_char = digest_vec[1].to_string();
+
+    concat_string!(first_char, "/", second_char, "/")
 }
 
 #[post("")]
 async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl Responder, Error> {
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR envar");
 
-    // get file digest, as
-    // this can be used to prevent spam uploads wasting storage
-    // though, each time; it does create a db value aka a mask just pointing toward the same file
-    let digest_create = Sha256::digest(&data.file.bytes);
-    let mut digest = String::with_capacity(digest_create.len());
-    if let Err(_) = write!(digest, "{:x}", digest_create) {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Internal error occurred, try again later".to_string(),
-        }));
+    // find user by their upload token, hopefully, specified in the multipart
+    let found_user = match user::Entity::find()
+        .filter(user::Column::Uploadtoken.eq(data.upload_key.clone()))
+        .one(&state.db)
+        .await
+        .expect("User not found")
+    {
+        Some(val) => val,
+        None => {
+            return Ok(actix_web::web::Json(ApiResponse {
+                success: false,
+                message: "Not authorized".to_string(),
+            }));
+        }
     };
+
+    // get file digest, as this can be used to prevent spam uploads wasting storage
+    // though, each time; it does create a db value aka a mask just pointing toward the same file
+    let digest = format!("{:x}", Sha256::digest(&data.file.bytes));
 
     // get the first two characters of the digest and make a directory using it
-    let digest_path = get_file_path(digest.to_string()).to_string();
+    let digest_dir = create_digest_path(digest.clone());
 
-    // get the first two characters of the file digest
-    // to split files into directories & files, again:
-    // to prevent spam uploads
-    let mut hash_dir = String::with_capacity(1 + upload_dir.len() + digest_path.len());
-    if let Err(_) = write!(hash_dir, "{}{}/", upload_dir, digest_path) {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Internal error occurred, try again later".to_string(),
-        }));
-    };
-
-    // create a std path, used to create the path
-    let file_dir = std::path::Path::new(&hash_dir);
+    // adds upload_dir to the start of digest_dir
+    let file_dir = concat_string!(upload_dir, digest_dir);
 
     // if the uploaded files path doesn't exist, create it
     // tokios's fs is fast as fuck
     if !Path::new(&file_dir).exists() {
-        if let Err(_) = tokio::fs::create_dir_all(file_dir).await {
+        if let Err(_) = tokio::fs::create_dir_all(&file_dir).await {
             return Ok(actix_web::web::Json(ApiResponse {
                 success: false,
                 message: "Internal error occurred, try again later".to_string(),
@@ -70,30 +71,16 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
         };
     }
 
-    let mut file_path = String::with_capacity(1 + hash_dir.len() + digest.len());
-    if let Err(_) = write!(file_path, "{}{}", hash_dir, digest) {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Internal error occurred, try again later".to_string(),
-        }));
-    };
+    // add the digest to the end of file dir
+    let file_dir = concat_string!(&file_dir, digest.clone());
 
-    println!("{}", file_path);
-
-    // if the file exists, theres no point in re-writing it
-    if std::path::Path::new(&file_path).exists() {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: true,
-            message: "Successfully uploaded file".to_string(),
-        }));
-    }
     // open a write stream to the dir & file to create them
     let mut file = tokio::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .read(true)
         .truncate(true)
-        .open(file_path)
+        .open(&file_dir)
         .await?;
     if let Err(_) = file.write_all(&data.file.bytes).await {
         return Ok(actix_web::web::Json(ApiResponse {
@@ -101,6 +88,24 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
             message: "Internal error occurred, try again later".to_string(),
         }));
     };
+
+    // attempt to add upload to db
+    if let Err(_) = (upload::ActiveModel {
+        userid: Set(found_user.id),
+        filemask: Set(gen_image_mask()),
+        mimetype: Set(data.file.content_type.to_string()),
+        hash: Set(digest),
+        size: Set(data.file.bytes.len() as i32),
+        ..Default::default()
+    }
+    .insert(&state.db)
+    .await)
+    {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Internal error occurred, try again later".to_string(),
+        }));
+    }
 
     // success!
     Ok(actix_web::web::Json(ApiResponse {

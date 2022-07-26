@@ -14,8 +14,6 @@ use sea_orm::{
     prelude::Uuid, ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set,
 };
 
-type AppData = web::Data<AppState>;
-
 pub fn get() -> Scope {
     web::scope("/auth").service(login).service(register)
 }
@@ -23,10 +21,10 @@ pub fn get() -> Scope {
 #[post("/login")]
 async fn login(
     data: web::Json<ILogin>,
-    state: AppData,
+    state: web::Data<AppState>,
     id: Identity,
 ) -> Result<impl Responder, Error> {
-    // find user in db
+    // find user in db & check for non-existance
     let found_user = match user::Entity::find()
         .filter(user::Column::Username.eq(data.username.to_owned()))
         .one(&state.db)
@@ -68,7 +66,7 @@ async fn login(
 #[post("/register")]
 async fn register(
     data: web::Json<IRegister>,
-    state: AppData,
+    state: web::Data<AppState>,
     id: Identity,
 ) -> Result<impl Responder, Error> {
     // these if's are spaghetti
@@ -127,7 +125,7 @@ async fn register(
         }
     };
 
-    let new_user = user::ActiveModel {
+    let new_user = match (user::ActiveModel {
         username: Set(data.username.clone()),
         email: Set(data.email.clone()),
         password: Set(hashed_password.to_string()),
@@ -136,16 +134,18 @@ async fn register(
         ..Default::default()
     }
     .insert(&state.db)
-    .await;
+    .await)
+    {
+        Ok(val) => val,
+        Err(_) => {
+            return Ok(actix_web::web::Json(ApiResponse {
+                success: false,
+                message: "Internal error occurred, please try again".to_string(),
+            }));
+        }
+    };
 
-    if let Err(_) = new_user {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Internal error occurred, please try again".to_string(),
-        }));
-    }
-
-    id.remember(create_jwt(new_user.unwrap().token.to_string()).unwrap());
+    id.remember(create_jwt(new_user.token.to_string()).unwrap());
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,

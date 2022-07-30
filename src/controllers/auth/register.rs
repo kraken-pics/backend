@@ -1,65 +1,15 @@
 use crate::{
     entity::{config as ConfigTable, user as UserTable},
     state::AppState,
-    typings::{
-        auth::{ILogin, IRegister},
-        response::ApiResponse,
-    },
+    typings::{auth::IRegister, response::ApiResponse},
     util::{jwt::create_jwt, user},
 };
 use actix_identity::Identity;
-use actix_web::{post, web, Error, Responder, Result, Scope};
+use actix_web::{post, web, Responder, Result};
 use bcrypt::hash;
 use sea_orm::{
     prelude::Uuid, ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set,
 };
-
-pub fn get() -> Scope {
-    web::scope("/auth").service(login).service(register)
-}
-
-#[post("/login")]
-async fn login(
-    data: web::Json<ILogin>,
-    state: web::Data<AppState>,
-    id: Identity,
-) -> Result<impl Responder, Error> {
-    // find user in db & check for non-existance
-    let found_user = match UserTable::Entity::find()
-        .filter(UserTable::Column::Username.eq(data.username.to_owned()))
-        .one(&state.db)
-        .await
-        .expect("user not found")
-    {
-        Some(val) => val,
-        None => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Invalid Username/password".to_string(),
-            }))
-        }
-    };
-
-    // check if stored hash compares successfully to the user provided password
-    match bcrypt::verify(data.password.clone(), &found_user.password) {
-        Ok(val) => val,
-        Err(_) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Invalid Username/password".to_string(),
-            }))
-        }
-    };
-
-    // set user in session
-    id.remember(create_jwt(found_user.token.to_string()).unwrap());
-
-    // success
-    Ok(actix_web::web::Json(ApiResponse {
-        success: true,
-        message: "Successfully logged in".to_string(),
-    }))
-}
 
 // TO-DO:
 // find out to create config at the same time as user
@@ -70,9 +20,8 @@ async fn register(
     data: web::Json<IRegister>,
     state: web::Data<AppState>,
     id: Identity,
-) -> Result<impl Responder, Error> {
-    // these if's are spaghetti
-
+) -> Result<impl Responder> {
+    // verify username restraints
     if let Err(err) = user::check_username(data.username.clone()) {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
@@ -80,6 +29,15 @@ async fn register(
         }));
     }
 
+    //verify password restraints
+    if let Err(err) = user::check_password(data.password.clone()) {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: err.to_string(),
+        }));
+    }
+
+    // check if user exists in db, then error handle
     if UserTable::Entity::find()
         .filter(
             Condition::any()

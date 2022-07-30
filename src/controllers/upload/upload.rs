@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use actix_multipart_extract::Multipart;
-use actix_web::{post, web, Error, Responder, Scope};
+use actix_web::{post, web, Error, Responder};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
@@ -17,10 +17,7 @@ use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
 // global AppState
 type AppData = web::Data<AppState>;
 
-pub fn get() -> Scope {
-    web::scope("/upload").service(upload_file)
-}
-
+// create file path from digest
 fn create_digest_path(digest: String) -> String {
     let digest_vec: Vec<char> = digest.chars().collect();
 
@@ -31,7 +28,7 @@ fn create_digest_path(digest: String) -> String {
 }
 
 #[post("")]
-async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl Responder, Error> {
+async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Responder, Error> {
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR envar");
 
     // find user by their upload token, hopefully, specified in the multipart

@@ -24,7 +24,7 @@ impl AppState {
 
         return result;
     }
-    pub fn init_multipart() -> MultipartConfig {
+    pub async fn init_multipart() -> MultipartConfig {
         MultipartConfig::set_error_handler(Default::default(), error_handler)
     }
 }

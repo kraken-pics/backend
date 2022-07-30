@@ -1,6 +1,6 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{web, App, HttpServer};
-
+use actix_web::HttpServer;
+use actix_web::{web, App};
 use dotenv::dotenv;
 
 use kraken::controllers;
@@ -28,8 +28,7 @@ async fn main() -> std::io::Result<()> {
             ))
             // state middleware
             .app_data(web::Data::new(app_state.to_owned()))
-            .app_data(state::AppState::init_multipart())
-            // routes
+            .app_data(web::Data::new(state::AppState::init_multipart()))
             .service(controllers::routes::get())
     })
     // bind to localhost on envar port

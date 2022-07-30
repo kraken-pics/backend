@@ -6,10 +6,10 @@ use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
 use crate::{
-    entity::{upload, user},
+    entity::{config as ConfigTable, upload as UploadTable, user as UserTable},
     state::AppState,
     typings::{response::ApiResponse, upload::UploadForm},
-    util::string::gen_image_mask,
+    util::string::gen_file_mask,
 };
 
 use sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Set};
@@ -35,8 +35,8 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR envar");
 
     // find user by their upload token, hopefully, specified in the multipart
-    let found_user = match user::Entity::find()
-        .filter(user::Column::Uploadtoken.eq(data.upload_key.clone()))
+    let found_user = match UserTable::Entity::find()
+        .filter(UserTable::Column::Uploadtoken.eq(data.upload_key.clone()))
         .one(&state.db)
         .await
         .expect("User not found")
@@ -50,6 +50,28 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
         }
     };
 
+    let found_config = match ConfigTable::Entity::find()
+        .filter(ConfigTable::Column::Userid.eq(found_user.id))
+        .one(&state.db)
+        .await
+        .expect("Config not found")
+    {
+        Some(val) => val,
+        None => {
+            return Ok(actix_web::web::Json(ApiResponse {
+                success: false,
+                message: "Not authorized".to_string(),
+            }));
+        }
+    };
+
+    if data.file.bytes.len() == 0 {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "File cannot be empty".to_string(),
+        }));
+    }
+
     // get file digest, as this can be used to prevent spam uploads wasting storage
     // though, each time; it does create a db value aka a mask just pointing toward the same file
     let digest = format!("{:x}", Sha256::digest(&data.file.bytes));
@@ -61,7 +83,6 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
     let file_dir = concat_string!(upload_dir, digest_dir);
 
     // if the uploaded files path doesn't exist, create it
-    // tokios's fs is fast as fuck
     if !Path::new(&file_dir).exists() {
         if let Err(_) = tokio::fs::create_dir_all(&file_dir).await {
             return Ok(actix_web::web::Json(ApiResponse {
@@ -85,14 +106,16 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
     if let Err(_) = file.write_all(&data.file.bytes).await {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
-            message: "Internal error occurred, try again later".to_string(),
+            message: "Internal error occurred, try again later write".to_string(),
         }));
     };
 
+    let file_mask = gen_file_mask(found_config.urltype);
+
     // attempt to add upload to db
-    if let Err(_) = (upload::ActiveModel {
+    if let Err(err) = (UploadTable::ActiveModel {
         userid: Set(found_user.id),
-        filemask: Set(gen_image_mask()),
+        filemask: Set(file_mask.escape_unicode().to_string()),
         mimetype: Set(data.file.content_type.to_string()),
         hash: Set(digest),
         size: Set(data.file.bytes.len() as i32),
@@ -103,13 +126,13 @@ async fn upload_file(data: Multipart<UploadForm>, state: AppData) -> Result<impl
     {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
-            message: "Internal error occurred, try again later".to_string(),
+            message: err.to_string(),
         }));
     }
 
     // success!
     Ok(actix_web::web::Json(ApiResponse {
         success: true,
-        message: "Successfully uploaded file".to_string(),
+        message: file_mask.to_string(),
     }))
 }

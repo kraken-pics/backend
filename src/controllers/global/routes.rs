@@ -1,5 +1,5 @@
 use crate::{
-    entity::{upload, user},
+    entity::{upload as UploadTable, user as UserTable},
     state::AppState,
     typings::response::{Stats, StatsResponse},
 };
@@ -17,11 +17,11 @@ pub fn get() -> Scope {
 async fn get_statistics(state: web::Data<AppState>) -> Result<impl Responder, Error> {
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR must be set");
 
-    let count_user = user::Entity::find()
+    let count_user = UserTable::Entity::find()
         .count(&state.db)
         .await
         .expect("Failed to count users");
-    let count_upload = upload::Entity::find()
+    let count_upload = UploadTable::Entity::find()
         .count(&state.db)
         .await
         .expect("Failed to count uploads");

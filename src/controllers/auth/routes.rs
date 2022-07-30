@@ -1,11 +1,11 @@
 use crate::{
-    entity::user,
+    entity::{config as ConfigTable, user as UserTable},
     state::AppState,
     typings::{
         auth::{ILogin, IRegister},
         response::ApiResponse,
     },
-    util::jwt::create_jwt,
+    util::{jwt::create_jwt, user},
 };
 use actix_identity::Identity;
 use actix_web::{post, web, Error, Responder, Result, Scope};
@@ -25,17 +25,17 @@ async fn login(
     id: Identity,
 ) -> Result<impl Responder, Error> {
     // find user in db & check for non-existance
-    let found_user = match user::Entity::find()
-        .filter(user::Column::Username.eq(data.username.to_owned()))
+    let found_user = match UserTable::Entity::find()
+        .filter(UserTable::Column::Username.eq(data.username.to_owned()))
         .one(&state.db)
         .await
-        .expect("User not found")
+        .expect("user not found")
     {
         Some(val) => val,
         None => {
             return Ok(actix_web::web::Json(ApiResponse {
                 success: false,
-                message: "Invalid username/password".to_string(),
+                message: "Invalid Username/password".to_string(),
             }))
         }
     };
@@ -46,7 +46,7 @@ async fn login(
         Err(_) => {
             return Ok(actix_web::web::Json(ApiResponse {
                 success: false,
-                message: "Invalid username/password".to_string(),
+                message: "Invalid Username/password".to_string(),
             }))
         }
     };
@@ -62,7 +62,9 @@ async fn login(
 }
 
 // TO-DO:
-// find out to create config at the same time as user with relations etc with seaorm
+// find out to create config at the same time as user
+// with seaorm, as the current method is quite ugly
+// also, find some way to improve creation speed
 #[post("/register")]
 async fn register(
     data: web::Json<IRegister>,
@@ -70,43 +72,23 @@ async fn register(
     id: Identity,
 ) -> Result<impl Responder, Error> {
     // these if's are spaghetti
-    if data.username.len() < 3 || data.username.len() > 30 {
+
+    if let Err(err) = user::check_username(data.username.clone()) {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,
-            message: "Username too short".to_string(),
+            message: err.to_string(),
         }));
     }
 
-    if data.username.len() > 30 {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Username too long".to_string(),
-        }));
-    }
-
-    if data.password.len() < 5 {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Password too short".to_string(),
-        }));
-    }
-
-    if data.password.len() > 50 {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
-            message: "Password too long".to_string(),
-        }));
-    }
-
-    if user::Entity::find()
+    if UserTable::Entity::find()
         .filter(
             Condition::any()
-                .add(user::Column::Username.eq(data.username.to_owned()))
-                .add(user::Column::Email.eq(data.email.to_owned())),
+                .add(UserTable::Column::Username.eq(data.username.to_owned()))
+                .add(UserTable::Column::Email.eq(data.email.to_owned())),
         )
         .one(&state.db)
         .await
-        .expect("User not found")
+        .expect("user not found")
         .is_some()
     {
         return Ok(actix_web::web::Json(ApiResponse {
@@ -125,7 +107,7 @@ async fn register(
         }
     };
 
-    let new_user = match (user::ActiveModel {
+    let new_user = UserTable::ActiveModel {
         username: Set(data.username.clone()),
         email: Set(data.email.clone()),
         password: Set(hashed_password.to_string()),
@@ -134,18 +116,30 @@ async fn register(
         ..Default::default()
     }
     .insert(&state.db)
+    .await;
+    if let Err(_) = new_user {
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Internal error occurred, please try again".to_string(),
+        }));
+    }
+
+    // create config, no need for un-joined if as we don't require
+    // any values from this table after creation
+    if let Err(_) = (ConfigTable::ActiveModel {
+        userid: Set(new_user.clone().unwrap().id),
+        ..Default::default()
+    }
+    .insert(&state.db)
     .await)
     {
-        Ok(val) => val,
-        Err(_) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Internal error occurred, please try again".to_string(),
-            }));
-        }
+        return Ok(actix_web::web::Json(ApiResponse {
+            success: false,
+            message: "Internal error occurred, please try again".to_string(),
+        }));
     };
 
-    id.remember(create_jwt(new_user.token.to_string()).unwrap());
+    id.remember(create_jwt(new_user.clone().unwrap().token.to_string()).unwrap());
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,

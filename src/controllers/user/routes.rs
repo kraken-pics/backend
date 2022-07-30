@@ -1,5 +1,5 @@
 use crate::{
-    entity::user,
+    entity::user as UserEntity,
     state::AppState,
     typings::response::{ApiResponse, User, UserResponse},
     util::jwt::decode_jwt,
@@ -39,8 +39,8 @@ async fn get_user(state: web::Data<AppState>, id: Identity) -> Result<impl Respo
         }));
     }
 
-    let found_user = match user::Entity::find()
-        .filter(user::Column::Token.eq(user_identity.unwrap()))
+    let found_user = match UserEntity::Entity::find()
+        .filter(UserEntity::Column::Token.eq(user_identity.unwrap()))
         .one(&state.db)
         .await
         .expect("User not found")
@@ -97,8 +97,8 @@ async fn delete_user(state: web::Data<AppState>, id: Identity) -> Result<impl Re
         }));
     }
 
-    let found_user = match user::Entity::find()
-        .filter(user::Column::Token.eq(user_identity.unwrap()))
+    let found_user = match UserEntity::Entity::find()
+        .filter(UserEntity::Column::Token.eq(user_identity.unwrap()))
         .one(&state.db)
         .await
         .expect("User not found")
@@ -112,7 +112,7 @@ async fn delete_user(state: web::Data<AppState>, id: Identity) -> Result<impl Re
         }
     };
 
-    match user::Entity::delete_by_id(found_user.id)
+    match UserEntity::Entity::delete_by_id(found_user.id)
         .exec(&state.db)
         .await
     {

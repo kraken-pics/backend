@@ -30,3 +30,4 @@ sha2 = "0.10"
 tokio = { version = "1.10.0", features = ["full"] }
 random-string = "1.0"
 concat-string = "1.0.1"
+rand = "0.8.5"

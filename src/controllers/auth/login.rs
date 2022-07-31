@@ -6,6 +6,12 @@ use crate::{
 };
 use actix_identity::Identity;
 use actix_web::{post, web, Responder, Result};
+
+use argon2::{
+    password_hash::{PasswordHash, PasswordVerifier},
+    Argon2,
+};
+
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 #[post("/login")]
@@ -30,8 +36,12 @@ async fn login(
         }
     };
 
+    let parsed_hash = PasswordHash::new(&found_user.password).unwrap();
+
     // check if stored hash compares successfully to the user provided password
-    match bcrypt::verify(data.password.clone(), &found_user.password) {
+    match Argon2::default()
+        .verify_password(&data.password.clone().to_string().as_bytes(), &parsed_hash)
+    {
         Ok(val) => val,
         Err(_) => {
             return Ok(actix_web::web::Json(ApiResponse {

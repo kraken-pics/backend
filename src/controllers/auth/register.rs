@@ -6,7 +6,12 @@ use crate::{
 };
 use actix_identity::Identity;
 use actix_web::{post, web, Responder, Result};
-use bcrypt::hash;
+
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+    Argon2,
+};
+
 use sea_orm::{
     prelude::Uuid, ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set,
 };
@@ -55,20 +60,16 @@ async fn register(
         }));
     };
 
-    let hashed_password = match hash(data.password.clone(), 10) {
-        Ok(val) => val,
-        Err(_) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Internal error occurred, please try again".to_string(),
-            }));
-        }
-    };
+    let salt = SaltString::generate(&mut OsRng);
+
+    let password_hash = Argon2::default()
+        .hash_password(data.password.clone().to_string().as_bytes(), &salt)
+        .expect("Argon2id failure");
 
     let new_user = UserTable::ActiveModel {
         username: Set(data.username.clone()),
         email: Set(data.email.clone()),
-        password: Set(hashed_password.to_string()),
+        password: Set(password_hash.to_string()),
         token: Set(Uuid::new_v4().clone().to_string()),
         uploadtoken: Set(Uuid::new_v4().clone().to_string()),
         ..Default::default()

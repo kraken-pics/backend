@@ -15,3 +15,5 @@ pub fn check_password(password: String) -> Result<(), &'static str> {
         _ => Ok({}),
     }
 }
+
+pub fn create_user() {}

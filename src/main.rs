@@ -38,7 +38,6 @@ async fn main() -> std::io::Result<()> {
     let cookie_secret = dotenv::var("COOKIE_SECRET").expect("COOKIE_SECRET envar");
     let is_secure = dotenv::var("SECURE_HTTP").expect("SECURE_HTTP envar");
     let port = dotenv::var("PORT").expect("PORT envar");
-    let guarded = dotenv::var("GUARDED").expect("GUARDED envar");
 
     let app_state = state::AppState::init_db().await;
 

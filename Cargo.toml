@@ -31,3 +31,5 @@ tokio = { version = "1.10.0", features = ["full"] }
 random-string = "1.0"
 concat-string = "1.0.1"
 rand = "0.8.5"
+argon2 = "0.4"
+rand_core = { version = "0.6", features = ["std"] }

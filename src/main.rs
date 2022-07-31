@@ -8,7 +8,17 @@ use kraken::controllers;
 use kraken::state;
 
 fn protect_routes(req: &GuardContext) -> bool {
+    let guarded: bool = dotenv::var("GUARDED")
+        .expect("GUARDED envar")
+        .parse()
+        .unwrap();
     let guard_secret = dotenv::var("GUARDED_SECRET").expect("GUARDED_SECRET envar");
+
+    // guarded not enabled, early return
+    if !guarded {
+        return true;
+    }
+
     let guarded_val = match req.clone().head().headers.get("x-guarded") {
         Some(val) => val,
         None => return false,
@@ -28,6 +38,7 @@ async fn main() -> std::io::Result<()> {
     let cookie_secret = dotenv::var("COOKIE_SECRET").expect("COOKIE_SECRET envar");
     let is_secure = dotenv::var("SECURE_HTTP").expect("SECURE_HTTP envar");
     let port = dotenv::var("PORT").expect("PORT envar");
+    let guarded = dotenv::var("GUARDED").expect("GUARDED envar");
 
     let app_state = state::AppState::init_db().await;
 

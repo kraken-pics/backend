@@ -46,8 +46,8 @@ async fn register(
     if UserTable::Entity::find()
         .filter(
             Condition::any()
-                .add(UserTable::Column::Username.eq(data.username.to_owned()))
-                .add(UserTable::Column::Email.eq(data.email.to_owned())),
+                .add(UserTable::Column::Username.eq(data.username.clone()))
+                .add(UserTable::Column::Email.eq(data.email.clone())),
         )
         .one(&state.db)
         .await
@@ -61,7 +61,6 @@ async fn register(
     };
 
     let salt = SaltString::generate(&mut OsRng);
-
     let password_hash = Argon2::default()
         .hash_password(data.password.clone().to_string().as_bytes(), &salt)
         .expect("Argon2id failure");

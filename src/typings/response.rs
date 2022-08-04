@@ -1,6 +1,8 @@
 use crate::entity::sea_orm_active_enums::{Membership, Role};
 use serde::Serialize;
 
+use crate::entity::upload as UploadEntity;
+
 #[derive(Serialize)]
 pub struct ApiResponse {
     pub success: bool,
@@ -35,4 +37,11 @@ pub struct UserResponse {
     pub success: bool,
     pub message: String,
     pub user: Option<User>,
+}
+
+#[derive(Serialize)]
+pub struct GalleryResponse {
+    pub success: bool,
+    pub message: String,
+    pub uploads: Option<Vec<UploadEntity::Model>>,
 }

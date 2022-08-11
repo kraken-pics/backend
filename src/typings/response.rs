@@ -45,3 +45,42 @@ pub struct GalleryResponse {
     pub message: String,
     pub uploads: Option<Vec<UploadEntity::Model>>,
 }
+
+#[derive(Serialize)]
+pub struct ConfigArgs {
+    pub upload_key: String,
+}
+
+#[allow(non_snake_case)]
+#[derive(Serialize)]
+pub struct ConfigResponse {
+    pub Version: String,
+    pub Name: String,
+    pub DestinationType: String,
+    pub RequestMethod: String,
+    pub RequestURL: String,
+    pub Body: String,
+    pub Arguments: ConfigArgs,
+    pub FileFormName: String,
+    pub URL: String,
+}
+
+impl Default for ConfigResponse {
+    fn default() -> ConfigResponse {
+        let api_url = dotenv::var("API_URL").expect("API_URL envar");
+
+        ConfigResponse {
+            Version: "14.1.0".to_owned(),
+            Name: "Kraken.pics".to_owned(),
+            DestinationType: "ImageUploader".to_owned(),
+            RequestMethod: "POST".to_owned(),
+            RequestURL: format!("{}/upload", api_url),
+            Body: "MultipartFormData".to_owned(),
+            Arguments: ConfigArgs {
+                upload_key: "key".to_string(),
+            },
+            FileFormName: "file".to_owned(),
+            URL: "{json:message}".to_owned(),
+        }
+    }
+}

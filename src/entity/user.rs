@@ -17,8 +17,6 @@ pub struct Model {
     pub isverified: i8,
     pub role: Role,
     pub membership: Membership,
-    pub invites: i32,
-    #[sea_orm(unique)]
     pub token: String,
     #[sea_orm(unique)]
     pub uploadtoken: String,
@@ -28,19 +26,11 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(has_one = "super::config::Entity")]
     Config,
-    #[sea_orm(has_one = "super::invite::Entity")]
-    Invite,
 }
 
 impl Related<super::config::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Config.def()
-    }
-}
-
-impl Related<super::invite::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Invite.def()
     }
 }
 

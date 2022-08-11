@@ -8,8 +8,8 @@ use actix_web::{delete, web, Error, Responder, Result};
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 // delete user route
-#[delete("/@me")]
-async fn delete_user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
+#[delete("")]
+async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {

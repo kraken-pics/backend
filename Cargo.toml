@@ -33,3 +33,4 @@ concat-string = "1.0.1"
 rand = "0.8.5"
 argon2 = "0.4"
 rand_core = { version = "0.6", features = ["std"] }
+derive_more = "0.99.17"

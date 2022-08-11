@@ -4,7 +4,6 @@ pub mod prelude;
 
 pub mod config;
 pub mod domain;
-pub mod invite;
 pub mod sea_orm_active_enums;
 pub mod upload;
 pub mod user;

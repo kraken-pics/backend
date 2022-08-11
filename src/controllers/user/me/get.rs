@@ -9,8 +9,8 @@ use actix_web::{get, web, Error, Responder, Result};
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-#[get("/@me")]
-async fn get_user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
+#[get("")]
+async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {

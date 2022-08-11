@@ -2,6 +2,5 @@
 
 pub use super::config::Entity as Config;
 pub use super::domain::Entity as Domain;
-pub use super::invite::Entity as Invite;
 pub use super::upload::Entity as Upload;
 pub use super::user::Entity as User;

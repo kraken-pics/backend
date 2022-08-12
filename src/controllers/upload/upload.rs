@@ -1,14 +1,17 @@
 use std::path::Path;
 
 use actix_multipart_extract::Multipart;
-use actix_web::{post, web, Error, Responder};
+use actix_web::{post, web, Responder};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
 use crate::{
     entity::{config as ConfigTable, upload as UploadTable, user as UserTable},
     state::AppState,
-    typings::{response::ApiResponse, upload::UploadForm},
+    typings::{
+        response::{ApiResponse, ErrorResponse},
+        upload::UploadForm,
+    },
     util::string::gen_file_mask,
 };
 
@@ -28,7 +31,10 @@ fn create_digest_path(digest: String) -> String {
 }
 
 #[post("")]
-async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Responder, Error> {
+async fn upload(
+    data: Multipart<UploadForm>,
+    state: AppData,
+) -> Result<impl Responder, ErrorResponse> {
     let upload_dir = dotenv::var("UPLOAD_DIR").expect("UPLOAD_DIR envar");
 
     // find user by their upload token, hopefully, specified in the multipart
@@ -40,10 +46,9 @@ async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Resp
     {
         Some(val) => val,
         None => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            }));
+            });
         }
     };
 
@@ -55,18 +60,16 @@ async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Resp
     {
         Some(val) => val,
         None => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            }));
+            });
         }
     };
 
     if data.file.bytes.len() == 0 {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "File cannot be empty".to_string(),
-        }));
+        });
     }
 
     // get file digest, as this can be used to prevent spam uploads wasting storage
@@ -82,10 +85,9 @@ async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Resp
     // if the uploaded files path doesn't exist, create it
     if !Path::new(&file_dir).exists() {
         if let Err(_) = tokio::fs::create_dir_all(&file_dir).await {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Internal error occurred, try again later".to_string(),
-            }));
+            });
         };
     }
 
@@ -103,10 +105,9 @@ async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Resp
         .unwrap();
 
     if let Err(_) = file.write_all(&data.file.bytes).await {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "Internal error occurred, try again later write".to_string(),
-        }));
+        });
     };
 
     let file_mask = gen_file_mask(found_config.urltype);
@@ -123,10 +124,9 @@ async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Resp
     .insert(&state.db)
     .await)
     {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: err.to_string(),
-        }));
+        });
     }
 
     // success!

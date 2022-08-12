@@ -3,7 +3,7 @@ use crate::{
     state::AppState,
     typings::response::{ErrorResponse, Stats, StatsResponse},
 };
-use actix_web::{get, web, Error, Responder};
+use actix_web::{get, web, Responder};
 
 use sea_orm::*;
 

@@ -1,10 +1,11 @@
-use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_identity::IdentityMiddleware;
+use actix_session::{storage::RedisSessionStore, SessionMiddleware};
+use actix_web::cookie::Key;
 use actix_web::error::{InternalError, JsonPayloadError};
 use actix_web::guard::GuardContext;
 use actix_web::{guard, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web::{web, App};
 use dotenv::dotenv;
-
 use kraken::controllers;
 use kraken::state;
 use kraken::typings::response::ApiResponse;
@@ -47,20 +48,22 @@ async fn main() -> std::io::Result<()> {
     dotenv().ok();
 
     // get envars
+    let redis_url = dotenv::var("REDIS_URL").expect("REDIS_URL envar");
     let cookie_secret = dotenv::var("COOKIE_SECRET").expect("COOKIE_SECRET envar");
-    let is_secure = dotenv::var("SECURE_HTTP").expect("SECURE_HTTP envar");
     let port = dotenv::var("PORT").expect("PORT envar");
 
     let app_state = state::AppState::init_db().await;
+
+    let redis_store = RedisSessionStore::new(redis_url).await.expect("Redis");
 
     // instanciate http server
     HttpServer::new(move || {
         App::new()
             // cookie middleware
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(cookie_secret.clone().as_bytes())
-                    .name("kraken-auth")
-                    .secure(is_secure.parse().unwrap()),
+            .wrap(IdentityMiddleware::default())
+            .wrap(SessionMiddleware::new(
+                redis_store.clone(),
+                Key::from(cookie_secret.clone().as_bytes()),
             ))
             // state middleware
             .app_data(web::Data::new(app_state.to_owned()))

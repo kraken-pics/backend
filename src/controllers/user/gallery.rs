@@ -13,18 +13,17 @@ use sea_orm::{ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter};
 #[get("/gallery/{page}")]
 async fn gallery(
     state: web::Data<AppState>,
-    id: Identity,
+    user: Option<Identity>,
     page: web::Path<usize>,
 ) -> Result<impl Responder, ErrorResponse> {
     let images_per_page = dotenv::var("IMAGES_PER_PAGE").expect("IMAGES_PER_PAGE envar");
 
-    let user_identity = match id.identity() {
-        Some(val) => decode_jwt(val),
+    let user_identity = match user {
+        Some(val) => decode_jwt(val.id().unwrap()),
         None => {
             return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
             })
-            .unwrap();
         }
     };
 

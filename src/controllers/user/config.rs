@@ -5,19 +5,21 @@ use crate::{
     util::jwt::decode_jwt,
 };
 use actix_identity::Identity;
-use actix_web::{error::ParseError, get, web, Responder, Result};
+use actix_web::{get, web, Responder, Result};
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 #[get("config")]
-async fn download(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, ParseError> {
-    let user_identity = match id.identity() {
-        Some(val) => decode_jwt(val),
+async fn download(
+    state: web::Data<AppState>,
+    user: Option<Identity>,
+) -> Result<impl Responder, ErrorResponse> {
+    let user_identity = match user {
+        Some(val) => decode_jwt(val.id().unwrap()),
         None => {
             return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
             })
-            .unwrap();
         }
     };
 
@@ -39,7 +41,6 @@ async fn download(state: web::Data<AppState>, id: Identity) -> Result<impl Respo
             return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
             })
-            .unwrap();
         }
     };
 

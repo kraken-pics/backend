@@ -8,16 +8,15 @@ use crate::{
     util::{jwt::create_jwt, user},
 };
 use actix_identity::Identity;
-use actix_web::{error::ParseError, post, web, Result};
+use actix_web::{post, web, HttpMessage, HttpRequest, Result};
 
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2,
 };
 
-use sea_orm::{
-    prelude::Uuid, ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set,
-};
+use sea_orm::{ActiveModelTrait, ColumnTrait, Condition, EntityTrait, QueryFilter, Set};
+use uuid::Uuid;
 
 // TO-DO:
 // find out to create config at the same time as user
@@ -27,22 +26,20 @@ use sea_orm::{
 async fn register(
     data: web::Json<IRegister>,
     state: web::Data<AppState>,
-    id: Identity,
-) -> Result<actix_web::web::Json<ApiResponse>, ParseError> {
+    req: HttpRequest,
+) -> Result<actix_web::web::Json<ApiResponse>, ErrorResponse> {
     // verify username restraints
     if let Err(err) = user::check_username(data.username.clone()) {
         return Err(ErrorResponse {
             message: err.to_string(),
-        })
-        .unwrap();
+        });
     }
 
     //verify password restraints
     if let Err(err) = user::check_password(data.password.clone()) {
         return Err(ErrorResponse {
             message: err.to_string(),
-        })
-        .unwrap();
+        });
     }
 
     // check if user exists in db, then error handle
@@ -59,8 +56,7 @@ async fn register(
     {
         return Err(ErrorResponse {
             message: "Username/email already used".to_string(),
-        })
-        .unwrap();
+        });
     };
 
     let salt = SaltString::generate(&mut OsRng);
@@ -81,8 +77,7 @@ async fn register(
     if let Err(_) = new_user {
         return Err(ErrorResponse {
             message: "Internal error occurred, please try again".to_string(),
-        })
-        .unwrap();
+        });
     }
 
     // create config, no need for un-joined if as we don't require
@@ -96,11 +91,18 @@ async fn register(
     {
         return Err(ErrorResponse {
             message: "Internal error occurred, please try again".to_string(),
-        })
-        .unwrap();
+        });
     };
 
-    id.remember(create_jwt(new_user.clone().unwrap().token.to_string()).unwrap());
+    // set user in session
+    if let Err(err) = Identity::login(
+        &req.extensions(),
+        create_jwt(new_user.clone().unwrap().token.to_string()).unwrap(),
+    ) {
+        return Err(ErrorResponse {
+            message: err.to_string(),
+        });
+    };
 
     Ok(actix_web::web::Json(ApiResponse {
         success: true,

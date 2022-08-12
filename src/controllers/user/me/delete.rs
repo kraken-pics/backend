@@ -11,13 +11,16 @@ use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 // delete user route
 #[delete("")]
-async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, ErrorResponse> {
-    let user_identity = match id.identity() {
-        Some(val) => decode_jwt(val),
+async fn user(
+    state: web::Data<AppState>,
+    user: Option<Identity>,
+) -> Result<impl Responder, ErrorResponse> {
+    let user_identity = match user {
+        Some(val) => decode_jwt(val.id().unwrap()),
         None => {
             return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            });
+            })
         }
     };
 

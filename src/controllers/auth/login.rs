@@ -1,13 +1,14 @@
 use crate::{
     entity::user as UserTable,
     state::AppState,
-    typings::{auth::ILogin, response::ApiResponse},
+    typings::{
+        auth::ILogin,
+        response::{ApiResponse, ErrorResponse},
+    },
     util::jwt::create_jwt,
 };
 use actix_identity::Identity;
-use actix_web::{
-    error::ResponseError, http::header::ContentType, post, web, HttpResponse, Responder, Result,
-};
+use actix_web::{post, web, HttpMessage, HttpRequest, Responder, Result};
 
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
@@ -16,30 +17,12 @@ use argon2::{
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-use derive_more::Display;
-
-#[derive(Debug, Display)]
-pub struct TaskError {
-    message: String,
-}
-
-impl ResponseError for TaskError {
-    fn error_response(&self) -> HttpResponse {
-        HttpResponse::build(self.status_code())
-            .insert_header(ContentType::json())
-            .json(ApiResponse {
-                success: false,
-                message: self.to_string(),
-            })
-    }
-}
-
 #[post("/login")]
 async fn login(
     data: web::Json<ILogin>,
     state: web::Data<AppState>,
-    id: Identity,
-) -> Result<impl Responder, TaskError> {
+    req: HttpRequest,
+) -> Result<impl Responder, ErrorResponse> {
     // find user in db & check for non-existance
     let found_user = match UserTable::Entity::find()
         .filter(UserTable::Column::Username.eq(data.username.to_owned()))
@@ -49,7 +32,7 @@ async fn login(
     {
         Some(val) => val,
         None => {
-            return Err(TaskError {
+            return Err(ErrorResponse {
                 message: "Invalid username/password".to_string(),
             });
         }
@@ -63,14 +46,21 @@ async fn login(
     {
         Ok(val) => val,
         Err(_) => {
-            return Err(TaskError {
+            return Err(ErrorResponse {
                 message: "Invalid username/password".to_string(),
             })
         }
     };
 
     // set user in session
-    id.remember(create_jwt(found_user.token.to_string()).unwrap());
+    if let Err(err) = Identity::login(
+        &req.extensions(),
+        create_jwt(found_user.token.to_string()).unwrap(),
+    ) {
+        return Err(ErrorResponse {
+            message: err.to_string(),
+        });
+    };
 
     // success
     Ok(actix_web::web::Json(ApiResponse {

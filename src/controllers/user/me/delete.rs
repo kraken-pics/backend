@@ -1,30 +1,30 @@
 use crate::{
-    entity::user as UserEntity, state::AppState, typings::response::ApiResponse,
+    entity::user as UserEntity,
+    state::AppState,
+    typings::response::{ApiResponse, ErrorResponse},
     util::jwt::decode_jwt,
 };
 use actix_identity::Identity;
-use actix_web::{delete, web, Error, Responder, Result};
+use actix_web::{delete, web, Responder, Result};
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 // delete user route
 #[delete("")]
-async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
+async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, ErrorResponse> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            }));
+            });
         }
     };
 
     if user_identity.is_err() {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "Invalid JWT Token".to_string(),
-        }));
+        });
     }
 
     let found_user = match UserEntity::Entity::find()
@@ -35,10 +35,9 @@ async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder
     {
         Some(val) => val,
         None => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            }));
+            });
         }
     };
 
@@ -48,10 +47,9 @@ async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder
     {
         Ok(val) => val,
         Err(_) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: true,
+            return Err(ErrorResponse {
                 message: "An unknown error occurred, please try again".to_string(),
-            }));
+            });
         }
     };
 

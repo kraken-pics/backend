@@ -1,33 +1,31 @@
 use crate::{
     entity::user as UserEntity,
     state::AppState,
-    typings::response::{User, UserResponse},
+    typings::response::{ErrorResponse, User, UserResponse},
     util::jwt::decode_jwt,
 };
 use actix_identity::Identity;
-use actix_web::{get, web, Error, Responder, Result};
+use actix_web::{error::ParseError, get, web, Responder, Result};
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
 #[get("")]
-async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, Error> {
+async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, ParseError> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {
-            return Ok(actix_web::web::Json(UserResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-                user: None,
-            }));
+            })
+            .unwrap();
         }
     };
 
     if user_identity.is_err() {
-        return Ok(actix_web::web::Json(UserResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "Invalid JWT Token".to_string(),
-            user: None,
-        }));
+        })
+        .unwrap();
     }
 
     let found_user = match UserEntity::Entity::find()
@@ -38,11 +36,10 @@ async fn user(state: web::Data<AppState>, id: Identity) -> Result<impl Responder
     {
         Some(val) => val,
         None => {
-            return Ok(actix_web::web::Json(UserResponse {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-                user: None,
-            }));
+            })
+            .unwrap();
         }
     };
 

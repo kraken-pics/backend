@@ -1,4 +1,6 @@
 use crate::entity::sea_orm_active_enums::{Membership, Role};
+use actix_web::{http::header::ContentType, HttpResponse, ResponseError};
+use derive_more::Display;
 use serde::Serialize;
 
 use crate::entity::upload as UploadEntity;
@@ -7,6 +9,22 @@ use crate::entity::upload as UploadEntity;
 pub struct ApiResponse {
     pub success: bool,
     pub message: String,
+}
+
+#[derive(Debug, Display)]
+pub struct ErrorResponse {
+    pub message: String,
+}
+
+impl ResponseError for ErrorResponse {
+    fn error_response(&self) -> HttpResponse {
+        HttpResponse::build(self.status_code())
+            .insert_header(ContentType::json())
+            .json(ApiResponse {
+                success: false,
+                message: self.to_string(),
+            })
+    }
 }
 
 #[derive(Serialize)]

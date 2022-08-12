@@ -1,11 +1,13 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
+use actix_web::error::{InternalError, JsonPayloadError};
 use actix_web::guard::GuardContext;
-use actix_web::{guard, HttpServer};
+use actix_web::{guard, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web::{web, App};
 use dotenv::dotenv;
 
 use kraken::controllers;
 use kraken::state;
+use kraken::typings::response::ApiResponse;
 
 fn protect_routes(req: &GuardContext) -> bool {
     let guarded: bool = dotenv::var("GUARDED")
@@ -15,7 +17,7 @@ fn protect_routes(req: &GuardContext) -> bool {
     let guard_secret = dotenv::var("GUARDED_SECRET").expect("GUARDED_SECRET envar");
 
     // guarded not enabled, early return
-    if !guarded {
+    if guarded.eq(&false) {
         return true;
     }
 
@@ -30,6 +32,16 @@ fn protect_routes(req: &GuardContext) -> bool {
 
     true
 }
+
+fn handle_errors(err: JsonPayloadError, _req: &HttpRequest) -> Error {
+    let post_error = ApiResponse {
+        success: false,
+        message: format!("{}", err),
+    };
+
+    InternalError::from_response(err, HttpResponse::BadRequest().json(post_error)).into()
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -53,6 +65,11 @@ async fn main() -> std::io::Result<()> {
             // state middleware
             .app_data(web::Data::new(app_state.to_owned()))
             .app_data(web::Data::new(state::AppState::init_multipart()))
+            .app_data(
+                web::JsonConfig::default()
+                    .limit(4096)
+                    .error_handler(handle_errors),
+            )
             .service(controllers::routes::get().guard(guard::fn_guard(protect_routes)))
     })
     // bind to localhost on envar port

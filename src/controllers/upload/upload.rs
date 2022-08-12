@@ -99,7 +99,9 @@ async fn upload(data: Multipart<UploadForm>, state: AppData) -> Result<impl Resp
         .read(true)
         .truncate(true)
         .open(&file_dir)
-        .await?;
+        .await
+        .unwrap();
+
     if let Err(_) = file.write_all(&data.file.bytes).await {
         return Ok(actix_web::web::Json(ApiResponse {
             success: false,

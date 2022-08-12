@@ -5,7 +5,9 @@ use crate::{
     util::jwt::create_jwt,
 };
 use actix_identity::Identity;
-use actix_web::{post, web, Responder, Result};
+use actix_web::{
+    error::ResponseError, http::header::ContentType, post, web, HttpResponse, Responder, Result,
+};
 
 use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
@@ -14,12 +16,30 @@ use argon2::{
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
+use derive_more::Display;
+
+#[derive(Debug, Display)]
+pub struct TaskError {
+    message: String,
+}
+
+impl ResponseError for TaskError {
+    fn error_response(&self) -> HttpResponse {
+        HttpResponse::build(self.status_code())
+            .insert_header(ContentType::json())
+            .json(ApiResponse {
+                success: false,
+                message: self.to_string(),
+            })
+    }
+}
+
 #[post("/login")]
 async fn login(
     data: web::Json<ILogin>,
     state: web::Data<AppState>,
     id: Identity,
-) -> Result<impl Responder> {
+) -> Result<impl Responder, TaskError> {
     // find user in db & check for non-existance
     let found_user = match UserTable::Entity::find()
         .filter(UserTable::Column::Username.eq(data.username.to_owned()))
@@ -29,10 +49,9 @@ async fn login(
     {
         Some(val) => val,
         None => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Invalid Username/password".to_string(),
-            }))
+            return Err(TaskError {
+                message: "Invalid username/password".to_string(),
+            });
         }
     };
 
@@ -44,10 +63,9 @@ async fn login(
     {
         Ok(val) => val,
         Err(_) => {
-            return Ok(actix_web::web::Json(ApiResponse {
-                success: false,
-                message: "Invalid Username/password".to_string(),
-            }))
+            return Err(TaskError {
+                message: "Invalid username/password".to_string(),
+            })
         }
     };
 

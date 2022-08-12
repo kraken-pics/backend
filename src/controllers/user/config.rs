@@ -1,42 +1,31 @@
 use crate::{
     entity::user as UserEntity,
     state::AppState,
-    typings::response::{ApiResponse, ConfigArgs, ConfigResponse, User, UserResponse},
+    typings::response::{ConfigArgs, ConfigResponse, ErrorResponse},
     util::jwt::decode_jwt,
 };
 use actix_identity::Identity;
-use actix_web::{error, get, web, Responder, Result};
+use actix_web::{error::ParseError, get, web, Responder, Result};
 
 use sea_orm::{ColumnTrait, EntityTrait, QueryFilter};
 
-use derive_more::{Display, Error};
-
-#[derive(Debug, Display, Error)]
-#[display(fmt = "error occurred: {}", message)]
-struct MyError {
-    success: bool,
-    message: String,
-}
-
-impl error::ResponseError for MyError {}
-
 #[get("config")]
-async fn download(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, MyError> {
+async fn download(state: web::Data<AppState>, id: Identity) -> Result<impl Responder, ParseError> {
     let user_identity = match id.identity() {
         Some(val) => decode_jwt(val),
         None => {
-            return Err(MyError {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            });
+            })
+            .unwrap();
         }
     };
 
     if user_identity.is_err() {
-        return Err(MyError {
-            success: false,
+        return Err(ErrorResponse {
             message: "Invalid JWT Token".to_string(),
-        });
+        })
+        .unwrap();
     }
 
     let found_user = match UserEntity::Entity::find()
@@ -47,10 +36,10 @@ async fn download(state: web::Data<AppState>, id: Identity) -> Result<impl Respo
     {
         Some(val) => val,
         None => {
-            return Err(MyError {
-                success: false,
+            return Err(ErrorResponse {
                 message: "Not authorized".to_string(),
-            });
+            })
+            .unwrap();
         }
     };
 

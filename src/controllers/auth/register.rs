@@ -1,11 +1,14 @@
 use crate::{
     entity::{config as ConfigTable, user as UserTable},
     state::AppState,
-    typings::{auth::IRegister, response::ApiResponse},
+    typings::{
+        auth::IRegister,
+        response::{ApiResponse, ErrorResponse},
+    },
     util::{jwt::create_jwt, user},
 };
 use actix_identity::Identity;
-use actix_web::{post, web, Responder, Result};
+use actix_web::{error::ParseError, post, web, Result};
 
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
@@ -25,21 +28,21 @@ async fn register(
     data: web::Json<IRegister>,
     state: web::Data<AppState>,
     id: Identity,
-) -> Result<impl Responder> {
+) -> Result<actix_web::web::Json<ApiResponse>, ParseError> {
     // verify username restraints
     if let Err(err) = user::check_username(data.username.clone()) {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: err.to_string(),
-        }));
+        })
+        .unwrap();
     }
 
     //verify password restraints
     if let Err(err) = user::check_password(data.password.clone()) {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: err.to_string(),
-        }));
+        })
+        .unwrap();
     }
 
     // check if user exists in db, then error handle
@@ -54,10 +57,10 @@ async fn register(
         .expect("user not found")
         .is_some()
     {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "Username/email already used".to_string(),
-        }));
+        })
+        .unwrap();
     };
 
     let salt = SaltString::generate(&mut OsRng);
@@ -76,10 +79,10 @@ async fn register(
     .insert(&state.db)
     .await;
     if let Err(_) = new_user {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "Internal error occurred, please try again".to_string(),
-        }));
+        })
+        .unwrap();
     }
 
     // create config, no need for un-joined if as we don't require
@@ -91,10 +94,10 @@ async fn register(
     .insert(&state.db)
     .await)
     {
-        return Ok(actix_web::web::Json(ApiResponse {
-            success: false,
+        return Err(ErrorResponse {
             message: "Internal error occurred, please try again".to_string(),
-        }));
+        })
+        .unwrap();
     };
 
     id.remember(create_jwt(new_user.clone().unwrap().token.to_string()).unwrap());
